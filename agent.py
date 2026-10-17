@@ -14,7 +14,7 @@ from reportlab.lib import colors
 
 load_dotenv()
 
-llm = ChatGroq(model_name="openai/gpt-oss-20b", temperature=0.2)
+llm = ChatGroq(model_name="openai/gpt-oss-20b", temperature=0.2,max_tokens=4096)
 search_tool = DuckDuckGoSearchRun()
 
 def run_startup_validator(pitch: str) -> dict:
