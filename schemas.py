@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 
 class CompetitorInfo(BaseModel):
     name: str = Field(description="Name of the competitor")
@@ -20,11 +20,19 @@ class SWOTAnalysis(BaseModel):
     opportunities: List[str]
     threats: List[str]
 
+class MarketShareData(BaseModel):
+    name: str = Field(description="TAM, SAM, or SOM")
+    value: float = Field(description="Value in Billion USD")
+
+class ScoreBreakdownData(BaseModel):
+    category: str
+    score: int
 class StartupValidationReport(BaseModel):
-    idea_summary: str = Field(description="Refined pitch summary")
-    validation_score: int = Field(description="Overall feasibility score from 0 to 100", ge=0, le=100)
-    score_justification: str = Field(description="Reasoning behind the given score")
-    market_analysis: MarketAnalysis
-    competitors: List[CompetitorInfo]
-    swot: SWOTAnalysis
-    recommended_mvp_features: List[str] = Field(description="Top 3-4 features to test in MVP")
+    feasibility_score: int
+    score_breakdown_text: str
+    refined_pitch_summary: str
+    market_analysis_text: str
+    market_share_breakdown: List[MarketShareData]
+    score_metrics: List[ScoreBreakdownData]
+    key_industry_trends: List[str]
+    competitors: List[str]
