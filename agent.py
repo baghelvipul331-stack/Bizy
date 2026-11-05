@@ -13,6 +13,7 @@ from reportlab.lib import colors
 
 load_dotenv()
 
+# Using a robust and fast Groq model
 llm = ChatGroq(model_name="openai/gpt-oss-20b", temperature=0.2)
 search_tool = DuckDuckGoSearchRun()
 
@@ -24,8 +25,6 @@ def run_startup_validator(pitch: str) -> dict:
     except Exception as e:
         formatted_research = f"Web search failed: {str(e)}"
 
-    json_schema = StartupValidationReport.model_json_schema()
-    
     prompt = f"""
     You are an expert VC Investor and Startup Analyst. Validate this startup idea based on ground truth web research.
 
@@ -34,35 +33,12 @@ def run_startup_validator(pitch: str) -> dict:
     Live Web Research & Market Data:
     {formatted_research}
     
-    Perform a deep competitor and market research evaluation.
-    For each competitor, provide:
-    - name
-    - description
-    - valuation_or_funding (e.g., "$100M Series B", "Bootstrapped")
-    - market_position (e.g., "Market Leader", "Niche Challenger")
-    - strengths (list of strings)
-    - weaknesses (list of strings)
-    - strategic_insight (string)
-
-    You MUST output valid JSON matching this exact schema structure:
-    {json_schema}
-    
-    Return ONLY valid JSON. Do not include any markdown formatting like ```json or ```, just the raw JSON object string.
+    Perform a deep competitor and market research evaluation following the required output structure.
     """
     
-    response = llm.invoke(prompt)
-    content = response.content.strip()
-    
-    if content.startswith("```json"):
-        content = content[7:]
-    if content.startswith("```"):
-        content = content[3:]
-    if content.endswith("```"):
-        content = content[:-3]
-    content = content.strip()
-    
-    parsed_data = json.loads(content)
-    report = StartupValidationReport(**parsed_data)
+    # LangChain structured output automatically handles Pydantic validation and avoids JSON parsing errors
+    structured_llm = llm.with_structured_output(StartupValidationReport)
+    report = structured_llm.invoke(prompt)
     return report.model_dump()
 
 def generate_pdf_report(data: dict) -> bytes:
