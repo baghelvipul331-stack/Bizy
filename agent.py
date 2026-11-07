@@ -13,8 +13,7 @@ from reportlab.lib import colors
 
 load_dotenv()
 
-# Using a robust and fast Groq model
-llm = ChatGroq(model_name="openai/gpt-oss-20b", temperature=0.2)
+llm = ChatGroq(model_name="openai/gpt-oss-20b", temperature=0.2,max_tokens=8192)
 search_tool = DuckDuckGoSearchRun()
 
 def run_startup_validator(pitch: str) -> dict:
@@ -25,21 +24,43 @@ def run_startup_validator(pitch: str) -> dict:
     except Exception as e:
         formatted_research = f"Web search failed: {str(e)}"
 
-    prompt = f"""
-    You are an expert VC Investor and Startup Analyst. Validate this startup idea based on ground truth web research.
+    # Get JSON schema representation from the Pydantic model
+    json_schema = json.dumps(StartupValidationReport.model_json_schema(), indent=2)
 
-    Startup Idea Pitch: "{pitch}"
+    prompt = f"""
+You are an expert VC Investor and Startup Analyst. Validate this startup idea based on ground truth web research.
+
+Startup Idea Pitch: "{pitch}"
+
+Live Web Research & Market Data:
+{formatted_research}
+
+You must return ONLY a valid JSON object matching the following JSON Schema structure. Do not include markdown code blocks (like ```json) or any extra conversational text. Return raw JSON only.
+
+Schema:
+{json_schema}
+"""
     
-    Live Web Research & Market Data:
-    {formatted_research}
-    
-    Perform a deep competitor and market research evaluation following the required output structure.
-    """
-    
-    # LangChain structured output automatically handles Pydantic validation and avoids JSON parsing errors
-    structured_llm = llm.with_structured_output(StartupValidationReport)
-    report = structured_llm.invoke(prompt)
-    return report.model_dump()
+    try:
+        response = llm.invoke(prompt)
+        content = response.content.strip()
+        
+        # Strip markdown code blocks if the model accidentally included them
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+            content = content.strip()
+            if content.endswith("```"):
+                content = content[:-3].strip()
+
+        parsed_data = json.loads(content)
+        validated_report = StartupValidationReport(**parsed_data)
+        return validated_report.model_dump()
+        
+    except Exception as e:
+        # Fallback or detailed error handling
+        raise RuntimeError(f"Failed to parse LLM response into structured format: {str(e)}. Raw output was: {response.content}")
 
 def generate_pdf_report(data: dict) -> bytes:
     buffer = io.BytesIO()
