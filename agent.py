@@ -10,17 +10,17 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-
+1
 load_dotenv()
 
 llm = ChatGroq(model_name="openai/gpt-oss-20b", temperature=0.2,max_tokens=8192)
 search_tool = DuckDuckGoSearchRun()
 
-def run_startup_validator(pitch: str) -> dict:
-    search_query = f"market size competitors valuation funding market position trends for {pitch}"
+def run_startup_validator(pitch: str,location: str = "Global") -> dict:
+    search_query = f"Companies marketsize competitors valuation in 2023 2024 2025 2026 funding rounds market position trends for {pitch} in {location}"
     try:
         search_result = search_tool.invoke(search_query)
-        formatted_research = f"Search Results:\n{search_result}"
+        formatted_research = f"Search Results for target region ({location}):\n{search_result}"
     except Exception as e:
         formatted_research = f"Web search failed: {str(e)}"
 
@@ -39,8 +39,23 @@ You must return ONLY a valid JSON object matching the following JSON Schema stru
 
 Schema:
 {json_schema}
-"""
-    
+
+...
+CRITICAL INSTRUCTION FOR VALUATIONS:
+- Do NOT guess or hallucinate financial numbers.
+- If live web data contains exact funding/valuation (e.g., Calm at $2B valuation), use that exact figure.
+- State the round/year if known (e.g., "$2B as of Series C / Peak").
+- Your data should be uptodate till 2026 first quarter
+- Look for the most recent funding rounds or acquisition values up to 2026 in the search context.
+- If modern acquisition or secondary market estimates exist in web data (e.g., 2025/2026 market estimates), mention both.
+- Review the live web search results carefully.
+- Look for recent funding data up to 2026 (e.g., Headspace's 2023 debt round or later acquisitions). 
+- Do NOT blindly default to 2021 data if more recent financial events exist in the search snippets.
+...
+    """
+    structured_llm = llm.with_structured_output(StartupValidationReport,method="json_mode")
+    report = structured_llm.invoke(prompt)
+
     try:
         response = llm.invoke(prompt)
         content = response.content.strip()
@@ -61,6 +76,8 @@ Schema:
     except Exception as e:
         # Fallback or detailed error handling
         raise RuntimeError(f"Failed to parse LLM response into structured format: {str(e)}. Raw output was: {response.content}")
+
+    return report.model_dump()
 
 def generate_pdf_report(data: dict) -> bytes:
     buffer = io.BytesIO()
