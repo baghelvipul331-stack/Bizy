@@ -4,6 +4,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 import asyncio
 from agent import run_startup_validator, generate_pdf_report
+from typing import Optional
 
 app = FastAPI(
     title="Startup Validator Agent API",
@@ -21,6 +22,7 @@ app.add_middleware(
 
 class PitchRequest(BaseModel):
     pitch: str
+    location: Optional[str] = "Global"
 
 @app.post("/api/v1/validate", response_model=dict)
 async def validate_pitch(request: PitchRequest):
@@ -28,7 +30,7 @@ async def validate_pitch(request: PitchRequest):
         raise HTTPException(status_code=400, detail="Pitch is too short. Please provide more details.")
     
     try:
-        result = await asyncio.to_thread(run_startup_validator, request.pitch)
+        result = await asyncio.to_thread(run_startup_validator, request.pitch, request.location)
         return {
             "status": "success",
             "data": result
@@ -40,7 +42,7 @@ async def validate_pitch(request: PitchRequest):
 async def download_pdf(request: PitchRequest):
     """Generates and streams the PDF report directly."""
     try:
-        result = await asyncio.to_thread(run_startup_validator, request.pitch)
+        result = await asyncio.to_thread(run_startup_validator, request.pitch, request.location)
         pdf_bytes = await asyncio.to_thread(generate_pdf_report, result)
         
         return Response(
