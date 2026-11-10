@@ -4,6 +4,7 @@ import { useState } from "react";
 
 export default function Home() {
   const [pitch, setPitch] = useState("");
+  const [location, setLocation] = useState(""); // <-- Naya location state
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
@@ -23,13 +24,15 @@ export default function Home() {
       const response = await fetch("http://127.0.0.1:8000/api/v1/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pitch }),
+        body: JSON.stringify({ 
+          pitch, 
+          location: location.trim() || "Global" // <-- Location pass ki ja rahi hai
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Handle both direct data or nested data object
         setResult(data.data || data);
       } else {
         setError(data.detail || "Server error occurred.");
@@ -54,7 +57,10 @@ export default function Home() {
       const response = await fetch("http://127.0.0.1:8000/api/v1/download-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pitch }),
+        body: JSON.stringify({ 
+          pitch, 
+          location: location.trim() || "Global" // <-- Location PDF download ke liye bhi pass ki ja rahi hai
+        }),
       });
 
       if (response.ok) {
@@ -95,19 +101,38 @@ export default function Home() {
 
         {/* Input Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-          <label className="block text-sm font-medium text-slate-300">
-            Describe your Startup Idea / Pitch
-          </label>
-          <textarea
-            rows={3}
-            value={pitch}
-            onChange={(e) => setPitch(e.target.value)}
-            placeholder="e.g., An app for mental health of young age group..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-          />
+          
+          {/* Pitch Input */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-300">
+              Describe your Startup Idea / Pitch
+            </label>
+            <textarea
+              rows={3}
+              value={pitch}
+              onChange={(e) => setPitch(e.target.value)}
+              placeholder="e.g., An app for mental health of young age group..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+          </div>
+
+          {/* Location Input Field (Naya add kiya gaya hai) */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-300">
+              Target Location / Region (Optional)
+            </label>
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="e.g., India, US, Bangalore, Global..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+          </div>
+
           {error && <p className="text-red-400 text-sm">{error}</p>}
           
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 pt-2">
             <button
               onClick={handleValidate}
               disabled={loading}
@@ -233,4 +258,3 @@ export default function Home() {
     </main>
   );
 }
-
