@@ -13,6 +13,7 @@ export default function Home() {
   const handleValidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pitch.trim() || pitch.length < 5) {
+      
       setError("Please enter a startup pitch.");
       return;
     }
