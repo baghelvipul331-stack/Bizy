@@ -6,91 +6,94 @@ from langchain_groq import ChatGroq
 from langchain_community.tools import DuckDuckGoSearchRun
 from schemas import StartupValidationReport
 
-# ReportLab imports for PDF generation
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-
+1
 load_dotenv()
 
-llm = ChatGroq(model_name="openai/gpt-oss-20b", temperature=0.2,max_tokens=4096)
+llm = ChatGroq(model_name="openai/gpt-oss-20b", temperature=0.2,max_tokens=8192)
 search_tool = DuckDuckGoSearchRun()
 
-def run_startup_validator(pitch: str) -> dict:
-    """Runs single agent logic: searches web for market info using free DuckDuckGo and validates pitch."""
-    search_query = f"market size competitors valuation funding market position trends for {pitch}"
+def run_startup_validator(pitch: str,location: str = "Global") -> dict:
+    search_query = f"Companies marketsize competitors valuation in 2023 2024 2025 2026 funding rounds market position trends for {pitch} in {location}"
     try:
         search_result = search_tool.invoke(search_query)
-        formatted_research = f"Search Results:\n{search_result}"
+        formatted_research = f"Search Results for target region ({location}):\n{search_result}"
     except Exception as e:
         formatted_research = f"Web search failed: {str(e)}"
 
-    # Get JSON schema for strict compliance
-    json_schema = StartupValidationReport.model_json_schema()
-    
+    # Get JSON schema representation from the Pydantic model
+    json_schema = json.dumps(StartupValidationReport.model_json_schema(), indent=2)
+
     prompt = f"""
-    You are an expert VC Investor and Startup Analyst. Validate this startup idea based on ground truth web research.
+You are an expert VC Investor and Startup Analyst. Validate this startup idea based on ground truth web research.
 
-    Startup Idea Pitch: "{pitch}"
-    
-    Live Web Research & Market Data:
-    {formatted_research}
-    
-    Perform a deep competitor and market research evaluation.
-    For each key competitor, you MUST analyze and derive:
-    1. Valuation / Funding Stage (e.g., $100M Series B, Bootstrapped, Public)
-    2. Market Position (e.g., Market Leader, Niche Player, Fast-growing Disruptor)
-    3. Detailed Strengths and Weaknesses
-    4. Strategic Insight (Unfair advantage or core strategy to watch out for)
+Startup Idea Pitch: "{pitch}"
 
-    You MUST output valid JSON matching this exact schema:
-    {json_schema}
-    
-    Return ONLY the raw JSON object, no markdown formatting or extra text.
+Live Web Research & Market Data:
+{formatted_research}
+
+You must return ONLY a valid JSON object matching the following JSON Schema structure. Do not include markdown code blocks (like ```json) or any extra conversational text. Return raw JSON only.
+
+Schema:
+{json_schema}
+
+...
+CRITICAL INSTRUCTION FOR VALUATIONS:
+- Do NOT guess or hallucinate financial numbers.
+- If live web data contains exact funding/valuation (e.g., Calm at $2B valuation), use that exact figure.
+- State the round/year if known (e.g., "$2B as of Series C / Peak").
+- Your data should be uptodate till 2026 first quarter
+- Look for the most recent funding rounds or acquisition values up to 2026 in the search context.
+- If modern acquisition or secondary market estimates exist in web data (e.g., 2025/2026 market estimates), mention both.
+- Review the live web search results carefully.
+- Look for recent funding data up to 2026 (e.g., Headspace's 2023 debt round or later acquisitions). 
+- Do NOT blindly default to 2021 data if more recent financial events exist in the search snippets.
+...
     """
-    
-    response = llm.invoke(prompt)
-    content = response.content.strip()
-    
-    # Clean markdown wrappers if any
-    if content.startswith("```json"):
-        content = content[7:]
-    if content.startswith("```"):
-        content = content[3:]
-    if content.endswith("```"):
-        content = content[:-3]
-    content = content.strip()
-    
-    parsed_data = json.loads(content)
-    report = StartupValidationReport(**parsed_data)
+    structured_llm = llm.with_structured_output(StartupValidationReport,method="json_mode")
+    report = structured_llm.invoke(prompt)
+
+    try:
+        response = llm.invoke(prompt)
+        content = response.content.strip()
+        
+        # Strip markdown code blocks if the model accidentally included them
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+            content = content.strip()
+            if content.endswith("```"):
+                content = content[:-3].strip()
+
+        parsed_data = json.loads(content)
+        validated_report = StartupValidationReport(**parsed_data)
+        return validated_report.model_dump()
+        
+    except Exception as e:
+        # Fallback or detailed error handling
+        raise RuntimeError(f"Failed to parse LLM response into structured format: {str(e)}. Raw output was: {response.content}")
+
     return report.model_dump()
 
 def generate_pdf_report(data: dict) -> bytes:
-    """Generates a professional PDF report bytes from the validation dictionary."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
     story = []
     
     styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle(
-        'DocTitle', parent=styles['Heading1'], fontSize=20, textColor=colors.HexColor('#4f46e5'), spaceAfter=6
-    )
-    subtitle_style = ParagraphStyle(
-        'DocSubTitle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#64748b'), spaceAfter=15
-    )
-    heading_style = ParagraphStyle(
-        'SectionHeading', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#1e293b'), spaceBefore=12, spaceAfter=6
-    )
-    body_style = ParagraphStyle(
-        'BodyDark', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#334155'), spaceAfter=4, leading=13
-    )
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=20, textColor=colors.HexColor('#4f46e5'), spaceAfter=6)
+    subtitle_style = ParagraphStyle('DocSubTitle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#64748b'), spaceAfter=15)
+    heading_style = ParagraphStyle('SectionHeading', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#1e293b'), spaceBefore=12, spaceAfter=6)
+    body_style = ParagraphStyle('BodyDark', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#334155'), spaceAfter=4, leading=13)
 
     story.append(Paragraph("🚀 Startup Validation & Market Intelligence Report", title_style))
     story.append(Paragraph("Generated autonomously by AI Agent & Real-time Web Intelligence", subtitle_style))
     
-    # Score Box
     score_text = f"<b>Feasibility Score: {data.get('validation_score', 0)} / 100</b>"
     justification = data.get('score_justification', '')
     score_table = Table([[Paragraph(score_text, body_style), Paragraph(justification, body_style)]], colWidths=[150, 390])
@@ -103,12 +106,10 @@ def generate_pdf_report(data: dict) -> bytes:
     story.append(score_table)
     story.append(Spacer(1, 8))
 
-    # Idea Summary
     story.append(Paragraph("💡 Refined Pitch Summary", heading_style))
     story.append(Paragraph(data.get('idea_summary', ''), body_style))
     story.append(Spacer(1, 6))
 
-    # Market Analysis
     story.append(Paragraph("📊 Market Analysis (TAM/SAM/SOM)", heading_style))
     market = data.get('market_analysis', {})
     story.append(Paragraph(market.get('tam_sam_som_overview', ''), body_style))
@@ -118,7 +119,6 @@ def generate_pdf_report(data: dict) -> bytes:
         story.append(Paragraph(f"• {trend}", body_style))
     story.append(Spacer(1, 6))
 
-    # Detailed Competitors Section
     story.append(Paragraph("🥊 Deep Competitor Landscape & Valuations", heading_style))
     for comp in data.get('competitors', []):
         comp_header = f"<b>{comp.get('name')}</b> <font color='#6366f1'>[{comp.get('market_position', 'Competitor')}]</font>"
@@ -138,7 +138,6 @@ def generate_pdf_report(data: dict) -> bytes:
         story.append(comp_table)
         story.append(Spacer(1, 6))
 
-    # Recommended MVP Features
     story.append(Paragraph("🛠️ Recommended MVP Features", heading_style))
     for feature in data.get('recommended_mvp_features', []):
         story.append(Paragraph(f"✅ {feature}", body_style))
