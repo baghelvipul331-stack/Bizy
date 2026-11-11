@@ -7,6 +7,7 @@ export default function Home() {
   const [location, setLocation] = useState(""); // <-- Naya location state
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null)
   const [error, setError] = useState("");
 
   const handleValidate = async (e: React.FormEvent) => {
