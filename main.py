@@ -1,3 +1,4 @@
+import base64
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -31,9 +32,14 @@ async def validate_pitch(request: PitchRequest):
     
     try:
         result = await asyncio.to_thread(run_startup_validator, request.pitch, request.location)
+
+        pdf_bytes = await asyncio.to_thread(generate_pdf_report,result)
+
+        pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
         return {
             "status": "success",
-            "data": result
+            "data": result,
+            "pdf_base64": pdf_base64
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Validator agent error: {str(e)}")
