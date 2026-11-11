@@ -7,13 +7,12 @@ export default function Home() {
   const [location, setLocation] = useState(""); 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [pdfBase64, setPdfBase64] = useState<string | null>(null); // ✅ State yahan properly linked hai
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const handleValidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pitch.trim() || pitch.length < 5) {
-      
       setError("Please enter a startup pitch.");
       return;
     }
@@ -37,7 +36,7 @@ export default function Home() {
 
       if (response.ok) {
         setResult(data.data || data);
-        setPdfBase64(data.pdf_base64); // ✅ Agent ke sath hi PDF base64 save ho gaya
+        setPdfBase64(data.pdf_base64); // PDF base64 save ho gaya ek hi baar mein
       } else {
         setError(data.detail || "Server error occurred.");
       }
@@ -55,7 +54,6 @@ export default function Home() {
     }
 
     try {
-      // ✅ Bina dobara agent run kiye, browser mein hi instant download
       const byteCharacters = atob(pdfBase64);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -96,7 +94,6 @@ export default function Home() {
 
         {/* Input Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-          
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-300">
               Describe your Startup Idea / Pitch
@@ -146,24 +143,104 @@ export default function Home() {
         {/* Results Section */}
         {result && (
           <div className="space-y-6 animate-fadeIn">
+            
+            {/* Score & Justification */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
                 <span className="text-xs uppercase tracking-wider text-slate-400 font-medium">Feasibility Score</span>
                 <span className="text-5xl font-black text-indigo-400 mt-2">
-                  {result.validation_score ?? 75}
+                  {result.validation_score ?? result.score ?? 75}
                   <span className="text-lg text-slate-500">/100</span>
                 </span>
               </div>
               <div className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-center">
                 <h3 className="text-sm uppercase tracking-wider text-slate-400 font-medium mb-1">Score Breakdown</h3>
-                <p className="text-slate-300 text-sm">{result.score_justification}</p>
+                <p className="text-slate-300 text-sm">{result.score_justification || result.justification || "Analysis generated successfully based on market metrics."}</p>
               </div>
             </div>
 
+            {/* Pitch Summary */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-2">
               <h3 className="text-indigo-400 font-semibold text-lg flex items-center gap-2">💡 Refined Pitch Summary</h3>
-              <p className="text-slate-300 text-sm leading-relaxed">{result.idea_summary}</p>
+              <p className="text-slate-300 text-sm leading-relaxed">{result.idea_summary || result.summary || pitch}</p>
             </div>
+
+            {/* Market Analysis & Trends */}
+            {(result.market_analysis || result.market) && (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <h3 className="text-indigo-400 font-semibold text-lg flex items-center gap-2">📊 Market Analysis & Trends</h3>
+                <p className="text-slate-300 text-sm">
+                  {result.market_analysis?.tam_sam_som_overview || result.market?.overview || "Market sizing and addressable segments evaluated."}
+                </p>
+                <div>
+                  <h4 className="text-xs uppercase tracking-wider text-slate-400 font-medium mb-2">Key Industry Trends</h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-slate-300">
+                    {(result.market_analysis?.industry_trends || result.market?.trends || ["Growing digital adoption", "Increased demand for personalized services"]).map((trend: string, idx: number) => (
+                      <li key={idx}>{trend}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Competitors with Valuations & Insights */}
+            {(result.competitors || result.competitor_list) && (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <h3 className="text-indigo-400 font-semibold text-lg flex items-center gap-2">
+                  🥊 Competitor Intelligence & Valuations
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(result.competitors || result.competitor_list).map((comp: any, idx: number) => (
+                    <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3 flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <h4 className="font-bold text-slate-100 text-base">{comp.name || comp.competitor_name}</h4>
+                          <span className="bg-indigo-500/20 text-indigo-300 text-xs px-2.5 py-0.5 rounded-full border border-indigo-500/30">
+                            {comp.market_position || comp.position || "Competitor"}
+                          </span>
+                        </div>
+                        
+                        <p className="text-emerald-400 text-xs font-semibold">
+                          💰 Valuation / Funding: <span className="text-slate-300 font-normal">{comp.valuation_or_funding || comp.valuation || "N/A"}</span>
+                        </p>
+
+                        <p className="text-slate-400 text-xs leading-relaxed">{comp.description || comp.overview}</p>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t border-slate-800/60 text-xs">
+                        <div>
+                          <span className="text-emerald-400 font-semibold">Strengths: </span>
+                          <span className="text-slate-300">{Array.isArray(comp.strengths) ? comp.strengths.join(", ") : comp.strengths || "N/A"}</span>
+                        </div>
+                        <div>
+                          <span className="text-rose-400 font-semibold">Weaknesses: </span>
+                          <span className="text-slate-300">{Array.isArray(comp.weaknesses) ? comp.weaknesses.join(", ") : comp.weaknesses || "N/A"}</span>
+                        </div>
+                        <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 text-indigo-300">
+                          <span className="font-bold text-indigo-400">💡 Strategic Insight: </span>
+                          {comp.strategic_insight || comp.insight || "Focus on niche differentiation and user retention."}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recommended MVP Features */}
+            {(result.recommended_mvp_features || result.mvp_features) && (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+                <h3 className="text-indigo-400 font-semibold text-lg flex items-center gap-2">🛠️ Recommended MVP Features</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(result.recommended_mvp_features || result.mvp_features).map((feature: string, idx: number) => (
+                    <div key={idx} className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-300 flex items-center gap-2">
+                      <span className="text-indigo-400 font-bold">✓</span> {feature}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 
