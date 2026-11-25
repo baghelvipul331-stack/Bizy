@@ -10,7 +10,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-1
+
 load_dotenv()
 
 llm = ChatGroq(model_name="openai/gpt-oss-20b", temperature=0.2,max_tokens=8192)
