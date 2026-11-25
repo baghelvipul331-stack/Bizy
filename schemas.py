@@ -14,25 +14,10 @@ class MarketAnalysis(BaseModel):
     tam_sam_som_overview: str = Field(description="Estimated market size, SAM, SOM, and trajectory")
     industry_trends: List[str] = Field(description="Key growth drivers")
 
-class SWOTAnalysis(BaseModel):
-    strengths: List[str]
-    weaknesses: List[str]
-    opportunities: List[str]
-    threats: List[str]
-
-class MarketShareData(BaseModel):
-    name: str = Field(description="TAM, SAM, or SOM")
-    value: float = Field(description="Value in Billion USD")
-
-class ScoreBreakdownData(BaseModel):
-    category: str
-    score: int
 class StartupValidationReport(BaseModel):
-    feasibility_score: int
-    score_breakdown_text: str
-    refined_pitch_summary: str
-    market_analysis_text: str
-    market_share_breakdown: List[MarketShareData]
-    score_metrics: List[ScoreBreakdownData]
-    key_industry_trends: List[str]
-    competitors: List[str]
+    validation_score: int = Field(description="Overall feasibility score out of 100")
+    score_justification: str = Field(description="Justification for the validation score")
+    idea_summary: str = Field(description="Refined summary of the startup idea")
+    market_analysis: MarketAnalysis = Field(description="Market analysis including TAM/SAM/SOM and trends")
+    competitors: List[CompetitorInfo] = Field(description="List of top competitors with deep intelligence")
+    recommended_mvp_features: List[str] = Field(description="List of recommended MVP features")
